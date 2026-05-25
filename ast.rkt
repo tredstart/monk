@@ -20,6 +20,7 @@
 (struct enum-def (name variants) #:transparent)
 ; variants = list of symbols
 (struct enum-variant (name) #:transparent)
+(struct union-variant (name id) #:transparent)
 
 
 (struct immut-def (name expr) #:transparent)
@@ -91,4 +92,5 @@
   ;; (struct-out for-loop)
 
   (struct-out form)
-  (struct-out enum-variant))
+  (struct-out enum-variant)
+  (struct-out union-variant))

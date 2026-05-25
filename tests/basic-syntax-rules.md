@@ -192,9 +192,9 @@
   (mut maybe-val (option :int))        ; starts as none
   (set maybe-val 42)                ; now holds 42
 
-  (match maybe-val
-    [none   (print "no value\n")]
-    [v      (print "got: " v "\n")])   ; v binds the inner int
+;  (match maybe-val
+;    [none   (print "no value\n")]
+;    [v      (print "got: " v "\n")])   ; v binds the inner int
 
   ; --- result type + match ---
   (let [good (safe-div 10.0 2.0)

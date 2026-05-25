@@ -76,6 +76,18 @@
 
 (define (parse-match-arm stx)
   (syntax-parse stx
+    [(wildcard:wildcard body:expr ...+)
+     (cond-arm
+       (atom (syntax->datum #'wildcard))
+       (map parse-expr (syntax->list #'(body ...))))]
+
+    [((name:variant binding:id) body:expr ...+)
+     (match-arm
+       (union-variant
+         (syntax->datum #'name)
+         (syntax->datum #'binding))
+       (map parse-expr (syntax->list #'(body ...))))]
+
     [(name:variant body:expr ...+)
      (match-arm
        (enum-variant (syntax->datum #'name))
