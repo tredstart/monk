@@ -1,7 +1,6 @@
 #lang racket
 
 (require "parse.rkt")
-
 ;; -- MAIN ---
 (define args (current-command-line-arguments))
 
