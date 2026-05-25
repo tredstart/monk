@@ -145,7 +145,7 @@
   (print "counter: " counter "\n")
 
   ; --- struct construction + field access ---
-  (mut alice (person "alice" 30 true))
+  (mut alice (person .name "alice" .age 30 .is-active true))
   (set alice.age (+ alice.age 1))     ; birthday
   (print "alice age: " alice.age "\n")
 

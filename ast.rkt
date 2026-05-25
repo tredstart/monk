@@ -5,19 +5,21 @@
 (struct int-lit (value) #:transparent)
 (struct float-lit (value) #:transparent)
 (struct string-lit (content) #:transparent)
+(struct char-lit (ch) #:transparent)
 (struct type-ref (id) #:transparent)
 
 ; field access
 ; alice.age, core.print
 ; core.print
-(struct field-access (target field) #:transparent) 
+(struct field-access (target field) #:transparent)
 
 ; type/struct/union/enum
 (struct struct-def (name fields) #:transparent)
-(struct union-def (name variants) #:transparent) ; (union shape { ... })
+(struct union-def (name variants) #:transparent)
 ; variants = list of struct/union-field
 (struct enum-def (name variants) #:transparent)
 ; variants = list of symbols
+(struct enum-variant (name) #:transparent)
 
 
 (struct immut-def (name expr) #:transparent)
@@ -35,8 +37,8 @@
 ;; (struct pat-union-payload (variant binding) #:transparent) ; (.circle r)
 ; variant = symbol, binding = symbol (the destructured payload name)
 
-;; (struct match-arm (pattern expr) #:transparent) -> future work!
-;; (struct match-expr (target arms) #:transparent)
+(struct match-arm (pattern expr) #:transparent)
+(struct match-expr (target arms) #:transparent)
 
 (struct cond-arm (condition expr) #:transparent) ; condition = expr or wildcard
 (struct cond-expr (arms) #:transparent) ; arms = list of cond-arm
@@ -76,16 +78,17 @@
   ;; (struct-out pat-none)
   ;; (struct-out pat-enum-variant)
   ;; (struct-out pat-union-payload)
-  ;; (struct-out match-arm)
-  ;; (struct-out match-expr)
+  (struct-out match-arm)
+  (struct-out match-expr)
 
   (struct-out cond-arm)
   (struct-out cond-expr)
 
   (struct-out let-def)
   (struct-out let-mut-def)
+  (struct-out char-lit)
 
   ;; (struct-out for-loop)
 
   (struct-out form)
-  )
+  (struct-out enum-variant))

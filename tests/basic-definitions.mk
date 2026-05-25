@@ -8,7 +8,7 @@
 
 (immut a "hello")
 
-(immut sum (+ a b))
+(mut sum (+ a b))
 
 
 (fn add-float [a :int b :float]
@@ -46,10 +46,21 @@
 
 (cond 
   [(< x 0) (print "hello!")]
-  [(= true) 
+  [(= false true) 
      (use-subarena)
-     (immut p1 (new :person "Luffy" 21 true))
+     (immut p1 (new 
+	     (person 
+		   .name "Luffy" 
+		   .age 21 
+		   .is-active true)))
 	 (print p1)]
   [_ (println "always prints out")]
   [_named-wildcard (print "named one")])
+
+(immut o error.not-found)
+(match o
+  [.not-found (print "it's okay!")]
+  [1 (print "int!")]
+  [1.0 (print "number!")]
+  [.bad-request (println "it's bad")])
 
