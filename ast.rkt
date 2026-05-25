@@ -22,6 +22,7 @@
 
 (struct immut-def (name expr) #:transparent)
 (struct mut-def (name expr) #:transparent)
+(struct bool-def (id) #:transparent)
 
 ; function definition
 (struct fn-def (name params body) #:transparent)
@@ -54,6 +55,7 @@
   (struct-out int-lit)
   (struct-out float-lit)
   (struct-out string-lit)
+  (struct-out bool-def)
   (struct-out type-ref)
 
   (struct-out field-access)

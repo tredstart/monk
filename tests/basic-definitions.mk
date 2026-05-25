@@ -44,3 +44,12 @@
 	is-active :bool
 })
 
+(cond 
+  [(< x 0) (print "hello!")]
+  [(= true) 
+     (use-subarena)
+     (immut p1 (new :person "Luffy" 21 true))
+	 (print p1)]
+  [_ (println "always prints out")]
+  [_named-wildcard (print "named one")])
+

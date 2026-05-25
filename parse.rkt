@@ -8,13 +8,22 @@
            (equal? (syntax-property this-syntax 'paren-shape) #\[)
            "lists must use '[' ']'"))
 (define-syntax-class brace-list
-  (pattern (_ ...) #:when (equal? (syntax-property this-syntax 'paren-shape) #\{)))
+  (pattern (_ ...) #:fail-unless
+           (equal? (syntax-property this-syntax 'paren-shape) #\{)
+           "fields/map definitions must use '{' '}'"))
 
 (define (syntax->string stx)
   (symbol->string (syntax->datum stx)))
 
 (define-syntax-class type-decl
-  (pattern type:id #:when (string-prefix? (syntax->string #'type) ":")))
+  (pattern type:id #:fail-unless
+           (string-prefix? (syntax->string #'type) ":")
+           "types must be prefixed with ':'"))
+
+(define-syntax-class wildcard
+  (pattern w:id #:fail-unless
+           (string-prefix? (syntax->string #'w) "_")
+           "inapropiate binding"))
 
 (define (parse-params stx-list)
   (syntax-parse stx-list
@@ -25,11 +34,11 @@
             (parse-params #'(more ...)))]
     [(type:type-decl . _) (raise-syntax-error
                             'no-parameter
-                            "no parameter in the parameter list for this type"
+                            " no parameter in the parameter list for this type "
                             (syntax->datum #'type))]
     [(name:id . _) (raise-syntax-error
                      'no-type
-                     "missing type for a declared parameter"
+                     " missing type for a declared parameter "
                      (syntax->datum #'name))]))
 
 (define (parse-let-bindings stx)
@@ -44,13 +53,34 @@
             (parse-expr #'init)
             (parse-let-bindings #'(more ...)))]))
 
+(define (parse-cond-arm stx)
+  (syntax-parse stx
+    [(wildcard:wildcard body:expr ...+)
+     (cond-arm
+       (atom (syntax->datum #'wildcard))
+       (map parse-expr (syntax->list #'(body ...))))]
+    [((condition:expr ...) body:expr ...+)
+     (cond-arm
+       (parse-expr #'(condition ...))
+       (map parse-expr (syntax->list #'(body ...))))]
+    [_ (raise-syntax-error
+         'invalid-condition
+         "Invalid condition. 
+         Maybe you've missed some ()? 
+         Or _ to mark this arm a wildcard?"
+         stx)]))
+
 (define (parse-expr stx)
   (syntax-parse stx
     #:datum-literals (fn struct mut immut macro union
-                         enum type let let-mut)
+                         enum type let let-mut cond
+                         true false)
+    [true (bool-def 'true)]
+    [false (bool-def 'false)]
     [x:id (atom (syntax->datum #'x))]
+    [x:integer
+     (int-lit (syntax->datum #'x))]
     [x:number (float-lit (syntax->datum #'x))]
-    [x:integer (int-lit (syntax->datum #'x))]
     [x:string (string-lit (syntax->datum #'x))]
     [(immut ~! name:id expression:expr)
      (immut-def
@@ -92,12 +122,16 @@
        (syntax->datum #'name)
        (parse-params (syntax->list #'params))
        (map parse-expr (syntax->list #'(body ...))))]
+    [(cond ~! arms:bracket-list ...)
+     (cond-expr
+       (map parse-cond-arm
+            (syntax->list #'(arms ...))))]
     [(name:id args:expr ...)
      (form
        (syntax->datum #'name)
        (map parse-expr (syntax->list #'(args ...))))]
     [wut (raise-syntax-error 'parse-error
-                             (format "how? HOW? What is ~a?"
+                             (format " how? HOW? What is ~a? "
                                      (syntax->datum #'wut)) stx)]))
 
 (provide parse-expr)
