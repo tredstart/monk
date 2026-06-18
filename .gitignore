@@ -1,2 +1,5 @@
 *.pdf
 compiled/
+./test_runtime_asan
+bin/
+

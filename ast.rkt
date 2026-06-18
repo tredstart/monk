@@ -31,7 +31,7 @@
 (struct fn-def (name params body) #:transparent)
 ;;
 ;; (struct pat-wildcard () #:transparent) ; _
-;; (struct pat-binding (name) #:transparent) ; v  — fresh name binding
+;; (struct pat-binding (name) #:transparent) ; v  - fresh name binding
 ;; (struct pat-literal (value) #:transparent) ; 0, 1, "str"
 ;; (struct pat-none () #:transparent) ; none
 ;; (struct pat-enum-variant (variant) #:transparent) ; .north
