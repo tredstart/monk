@@ -1,3 +1,3 @@
 (fn main []
-  (use-subarena)
-  (println (format "hello world")))
+  (printf "hello, world\n")
+  0)

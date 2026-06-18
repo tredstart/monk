@@ -1,15 +1,19 @@
 #lang racket
 
 (require "parse.rkt")
+(require "codegen.rkt")
 
 ; Stub codegen -- replaces a proper codegen.rkt module.
 ; TODO: extract to codegen.rkt and actually walk the AST.
 
 ; emit-program : (listof ast?) -> string
 (define (emit-program asts)
-  ; TODO: walk the AST, emit real instructions. For now, a valid
-  ; QBE program that returns 0 -- enough to verify the pipeline works.
-  "export function w $main() {\n@start\n  ret 0\n}\n")
+  (string-append
+   (match asts
+     ['() ""]
+     [(cons node _) (emit-instruction node)])
+   "\n"
+   (data-acc data-list "")))
 
 ; Parse a .mk source file into a list of AST nodes.
 (define (parse-file filename)
@@ -25,10 +29,13 @@
 ; Compile a .mk file all the way to a native binary.
 (define (compile-file filename [output-name #f])
   (define out-dir "bin")
+  (system (format "mkdir -p ~a" out-dir))
   (define base (path->string
                 (build-path out-dir
                             (or output-name
-                                (path-replace-suffix (string->path filename) #"")))))
+                                (path-replace-suffix
+                                 (file-name-from-path (string->path filename))
+                                 #"")))))
 
   ; Step 1 - Parse
   (printf "  [1/6] Parsing ~a...\n" filename)
@@ -73,10 +80,10 @@
 (define args (current-command-line-arguments))
 (define (parse-cli args-lst)
   (match args-lst
-    [(list input)               (values input #f)]
-    [(list "-o" output input)   (values input output)]
-    [(list input "-o" output)   (values input output)]
-    [(list _ ...)               (values #f #f)]))
+    [(list input) (values input #f)]
+    [(list "-o" output input) (values input output)]
+    [(list input "-o" output) (values input output)]
+    [(list _ ...) (values #f #f)]))
 (define-values (input output) (parse-cli (vector->list args)))
 (cond
   [(not input)
