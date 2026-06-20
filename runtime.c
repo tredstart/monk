@@ -40,6 +40,14 @@ typedef struct {
   handle_t current_subarena_handle;
 } context_t;
 
+int    bamm_argc = 0;
+char **bamm_argv = NULL;
+
+void bamm_init(int argc, char **argv) {
+    bamm_argc = argc;
+    bamm_argv = argv;
+}
+
 static handle_entry_t handle_table[MAX_HANDLES] = {0};
 static size_t next_handle = 0;
 static uint64_t next_id = 1;

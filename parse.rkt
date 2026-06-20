@@ -140,7 +140,7 @@
   (syntax-parse stx
     #:datum-literals (fn struct mut immut macro union
                          enum type let let-mut cond
-                         true false match)
+                         true false match @)
     [true (bool-def 'true)]
 
     [false (bool-def 'false)]

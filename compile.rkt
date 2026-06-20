@@ -3,9 +3,6 @@
 (require "parse.rkt")
 (require "codegen.rkt")
 
-; Stub codegen -- replaces a proper codegen.rkt module.
-; TODO: extract to codegen.rkt and actually walk the AST.
-
 ; emit-program : (listof ast?) -> string
 (define (emit-program asts)
   (string-append

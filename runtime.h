@@ -8,6 +8,10 @@
 #define MAX_HANDLES 100000
 #define HANDLE_INVALID (MAX_HANDLES + 64)
 
+extern int    bamm_argc;
+extern char **bamm_argv;
+void bamm_init(int argc, char **argv);
+
 typedef size_t handle_t;
 
 // resolve a handle to a raw pointer, returns NULL if dead
