@@ -1,4 +1,16 @@
 (fn main []
   (printf "args: %d\n" argc)
-  (printf "argv 1: %s\n" (idx argv 1))
-  argc)
+  (cond 
+      [(>= argc 2)
+		  (immut filename (idx argv 1))
+		  (immut file (fopen filename "r"))
+		  (immut len 1024)
+		  (immut buffer (malloc len))
+		  (cond [(!= buffer 0) (puts "yes?")])
+		  (fread buffer 1 len file)
+		  (printf "%s\n" buffer)
+		  (fclose file)
+		  (free buffer)])
+	  ; [(< argc 2)
+	   ; (puts "dummy branch")])
+  0)

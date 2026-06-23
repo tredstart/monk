@@ -5,12 +5,15 @@
 
 ; emit-program : (listof ast?) -> string
 (define (emit-program asts)
-  (string-append
-   (match asts
-     ['() ""]
-     [(cons node _) (emit-instruction node)])
-   "\n"
-   (data-acc data-list "")))
+  (values ""
+          (string-append
+            (match asts
+              ['() ""]
+              [(cons node _)
+               (define-values (_ code) (emit-instruction node))
+               code])
+            "\n"
+            (data-acc data-list ""))))
 
 ; Parse a .mk source file into a list of AST nodes.
 (define (parse-file filename)
@@ -28,11 +31,11 @@
   (define out-dir "bin")
   (system (format "mkdir -p ~a" out-dir))
   (define base (path->string
-                (build-path out-dir
-                            (or output-name
-                                (path-replace-suffix
-                                 (file-name-from-path (string->path filename))
-                                 #"")))))
+                 (build-path out-dir
+                             (or output-name
+                                 (path-replace-suffix
+                                   (file-name-from-path (string->path filename))
+                                   #"")))))
 
   ; Step 1 - Parse
   (printf "  [1/6] Parsing ~a...\n" filename)
@@ -41,7 +44,7 @@
 
   ; Step 2 - Code generation: AST -> QBE IR text
   (printf "  [2/6] Generating QBE IR...\n")
-  (define ssa-text (emit-program asts))
+  (define-values (_ ssa-text) (emit-program asts))
   (printf "         ~a bytes of QBE IR\n" (string-length ssa-text))
 
   ; Step 3 - Write the .ssa file

@@ -210,7 +210,14 @@
 
     [(name:id args:expr ...)
      (form
-       (syntax->datum #'name)
+       (match (syntax->datum #'name)
+         ['< 'csltw]
+         ['> 'csgtw]
+         ['= 'ceqw]
+         ['>= 'csgew]
+         ['<= 'cslew]
+         ['!= 'cnew]
+         [n n])
        (map parse-expr (syntax->list #'(args ...))))]
 
     [wut (raise-syntax-error 'parse-error
