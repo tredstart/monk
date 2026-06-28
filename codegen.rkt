@@ -2,9 +2,18 @@
 
 (require "ast.rkt")
 
+(define program "")
+
 (define data-list '())
 
-(define global-res-counter 0)
+(define (data-acc lst acc)
+  (match lst
+    ['() acc]
+    [(cons
+       (cons def content)
+       tail)
+     (data-acc tail (format "~adata ~a = { b \"~a\", b 0 }\n"
+                            acc def (escape-qbe-string content)))]))
 
 (define (escape-qbe-string s)
   (list->string
@@ -17,201 +26,163 @@
         [(cons #\tab rest) (append '(#\\ #\t) (loop rest))]
         [(cons c rest) (cons c (loop rest))]))))
 
-(define (data-acc lst acc)
+
+(struct ctx
+  ([result-count #:mutable]
+   [condition-count #:mutable]
+   [loop-count #:mutable]))
+
+(define (ret-val func lst)
   (match lst
-    ['() acc]
-    [(cons
-       (cons def content)
-       tail)
-     (data-acc tail (format "~adata $~a = { b \"~a\", b 0 }\n"
-                            acc def (escape-qbe-string content)))]))
-
-(define (emit-params params)
-  (match params
-    ['() ""]))
-
-(define (emit-string-lit content)
-  (define str (format "str~a" (length data-list)))
-  (set! data-list (append data-list (list (cons str content))))
-  (format "$~a" str))
-
-
-(define (emit-args args res)
-  (define inner-code "")
-  (define pieces
-    (for/list ([arg args])
-      (define-values (piece code) (emit-arg arg res))
-      (set! inner-code (string-append inner-code code))
-      piece))
-  (values (string-join pieces ", ") inner-code))
-
-(define (emit-arg arg res)
-  (match arg
-    [(atom id)
-     (values (format "%~a" id) "")]
-    [(string-lit content)
-     (values (emit-string-lit content) "")]
-    [(int-lit val)
-     (values (format "~a" val) "")]
-    [(form 'idx args)
-     (emit-field-access args)]
-    [(form _ _)
-     (define-values (_ s) (emit-instruction arg))
-     (values (format "%~a" res) (string-append s "\n"))]
-    [_ (raise-arguments-error
-         'bad-argument-in-a-call
-         "missing or unknown type of the argument: "
-         (format "~a" arg))]))
-
-(define (get-field-offset f)
-  "so this should be a typesystem resolved but 
-  to get bootstrap going let's try this way first"
-  ;; (string->number (int-lit-value f)))
-  (int-lit-value f))
+    ['() 0]
+    [(list x) (func x)]
+    [(cons x xs) (begin
+                   (func x)
+                   (ret-val func xs))]))
 
 (define globals
   (hash
-    'csltw ""
-    'csgtw ""
-    'ceqw ""
-    'cnew ""
-    'csgew ""
-    'cslew ""
-    'add ""
-    'mul ""
-    'sub ""
-    'div ""
-    ))
+    'csltl "" 'csgtl "" 'ceql "" 'cnel "" 'csgel "" 'cslel ""
+    'add "" 'mul "" 'sub "" 'div ""))
 
-(define (emit-field-access args)
-  (match args
-    [(list arg f)
-     (let [(arg-name (format "%~a" (atom-id arg)))
-           (f-name (format "%~a.~a" (atom-id arg) (int-lit-value f)))]
-       (values
-         "%ld"
-         (format
-           "\n\t~a =l add ~a, ~a\n\t%ld =l loadl ~a\n"
-           f-name arg-name (* 8 (get-field-offset f))
-           f-name)))]
-    [_ (raise-arguments-error 'not-enough-args "cannot access no name field")]))
-
-(define cond-counter 0)
-(define cond-body-counter 0)
-
-(define (emit-condition-resolution branch)
-  (define branch-id (format "@c~a.cond~a" cond-counter cond-counter))
-  (set! cond-counter (+ cond-counter 1))
-  (define-values (res condition) (emit-instruction branch))
-  (values res (format "~a\n~a" condition branch-id)))
-
-;; one cond arm should translate into
-;; %c1 =l __ a1, a2
-;; %c2 =l __ a1, a2
-;; @c1.cond1
-;;   jnz %c1 @c1.body1 @c1.cond2 <- if we have a next one
-;; @c1.cond2
-;;   jnz %c2 @c1.body2 @else
-;; @c1.body1
-;;   do some work here
-;; @c1.body2
-;;   do some work here
-;; @else
-;; # either body if _ or empty
-
-(define (emit-instruction node)
+(define (emit-instruction node context)
   (match node
-    ['() (values "" "")]
-    [(atom id)
-     (values id (format "\tret %~a" id))]
-    [(fn-def name params body)
-     (let* ([main? (equal? name 'main)]
-            [sig (if main? "w %argc, l %argv" (emit-params params))]
-            [preamble (if main?
-                          "\tcall $bamm_init(w %argc, l %argv)"
-                          "")])
-       (values "" (format
-                    "export function w $~a(~a) {\n@start\n~a\n~a\n}"
-                    name sig preamble
-                    (string-join (map
-                                   (lambda (x)
-                                     (define-values (_ c)
-                                       (emit-instruction x))
-                                     c)
-                                   body) "\n"))))]
-    [(int-lit val)
-     (values val (format "\tret ~a" val))]
+    [(atom id) (format "%~a" id)]
+    [(int-lit value) (format "~a" value)]
+    [(float-lit value) value]
+    [(string-lit content)
+     (let [(str (format "$str~a" (length data-list)))]
+       (set! data-list
+             (append data-list (list (cons str content))))
+       str)]
 
     [(form 'idx args)
-     (emit-field-access args)]
-    [(form name args)
-     (let [(res (format "%res~a" global-res-counter))]
-       (set! global-res-counter (+ global-res-counter 1))
-       (define-values (args-list inner-code) (emit-args args res))
-       (define result (format
-                        "~a\t~a =l "
-                        inner-code
-                        res))
-       (define call
-         (match name
-           [(? (lambda (k) (hash-has-key? globals k)))
-            (format "~a ~a\n" name args-list)]
-           [_
-            (define (add-type a)
-              (if (string-prefix? a "$")
-                  (format "l ~a" a)
-                  (format "w ~a" a)))
-            (format "call $~a(~a)\n"
-                    name
-                    (string-join (map add-type (string-split args-list ", ")) ", "))]))
-       (values res (string-append result call)))]
+     ; make it only for not nested for now
+     (match args
+       [(list n index)
+        (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+        (define access-result (format "%r~a" (ctx-result-count context)))
+
+        (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+        (define inter-result (format "%r~a" (ctx-result-count context)))
+        (let [(result (* 8 (string->number (emit-instruction index context))))
+              (name (emit-instruction n context))]
+          (set! program
+                (string-append program
+                               (format "\t~a =l add ~a, ~a\n\t~a =l loadl ~a\n"
+                                       access-result name result
+                                       inter-result access-result)))
+          inter-result)])]
+
+    [(form name args) #:when (hash-has-key? globals name)
+     (define sum
+       ;; (map (lambda (x)
+       ;;        (string-append "l "
+       ;;                       (emit-instruction x context))) args))
+       (map (lambda (x)
+              (emit-instruction x context)) args))
+     (define args-list (string-join sum ", "))
+     (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+     (define result (format "%r~a" (ctx-result-count context)))
+     (set! program
+           (string-append program
+                          (format "\t~a =l ~a ~a\n" result name args-list)))
+     result]
 
     [(immut-def name expr)
-     (let [(v (format "%~a" name))]
-       (define-values (r code) (emit-instruction expr))
-       (when (string-prefix? code "\tret") (set! code ""))
-       (values r
-               (format
-                 "~a\t~a =l copy ~a"
-                 code
-                 v r)))]
+     (let [(expr-res (emit-instruction expr context))]
+       (set! program
+             (string-append program (format "\t%~a =l copy ~a\n" name expr-res))))]
+    ;; temprorarily this will affect nothing actually
+    [(mut-def name expr)
+     (let [(expr-res (emit-instruction expr context))]
+       (set! program
+             (string-append program (format "\t%~a =l copy ~a\n" name expr-res))))]
 
+    [(bool-def id)
+     (match id
+       ('true 1)
+       ('false 0)
+       (_
+         (raise-contract-error
+           'third-boolean-provided "somehow it got parsed as a bool")))]
+    [(fn-def 'main _ body)
+     (set! program
+           (string-append program
+                          "export function l $main(l %argc, l %argv){\n"
+                          "@start\n"
+                          "\tcall $bamm_init(l %argc, l %argv)\n"))
+     (define ret (ret-val (lambda (x)
+                            (emit-instruction x context)) body))
+     (set! program
+           (string-append program
+                          (format "\tret ~a\n}\n" ret)))]
+    [(fn-def name params body)
+     ;; this is temp due to missing logic on the reversing
+     ;; atom - type-re => type-ref atom
+     (let [(param-list (string-join
+                         (map
+                           (lambda (item)
+                             (match item
+                               ['() ""]
+                               [(atom _) ""]
+                               [(type-ref _) ""])) params) ", "))]
+       (set! program
+             (string-append program
+                            (format "function l $~a(~a){\n@start\n"
+                                    name param-list)))
+       (define ret (ret-val (lambda (x)
+                              (emit-instruction x context)) body))
+       (set! program
+             (string-append program
+                            (format "\tret ~a\n}\n" ret))))]
+    [(form name args)
+     (define sum
+       (map (lambda (x)
+              (string-append "l "
+                             (emit-instruction x context))) args))
+     (define args-list (string-join sum ", "))
 
+     (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+     (define result (format "%r~a" (ctx-result-count context)))
+     (set! program
+           (string-append program
+                          (format "\t~a =l call $~a(~a)\n"
+                                  result name args-list)))
+     result]
     [(cond-expr arms)
-     (define else-cond (format "\n@else~a\n" (+ cond-counter 1)))
-     (values ""
-             (string-append
-               (string-join
-                 (map
-                   (lambda (arm)
-                     (match arm
-                       [(cond-arm condition body)
-                        (define bd (format "@body~a" cond-body-counter))
-                        (set! cond-body-counter (+ cond-body-counter 1))
-                        (define-values
-                          (res c)
-                          (emit-condition-resolution condition))
-                        (string-append c (format
-                                           "\n\tjnz ~a, ~a, @else~a\n~a\n~a\n"
-                                           res
-                                           bd
-                                           cond-counter
-                                           bd
-                                           (string-join
-                                             (map
-                                               (lambda (x)
-                                                 (define-values
-                                                   (_ r)
-                                                   (emit-instruction x))
-                                                 r)
-                                               body)
-                                             "\n"
+     (define label (format "@cond~a" (ctx-condition-count context)))
 
-                                             )))]
-                       [(cond-arm (atom 'wildcard) _) (format "@else~a\n" cond-counter)] ; body resolution again
+     (set-ctx-condition-count! context (+ (ctx-condition-count context) 1))
 
-                       ))
-                   arms) "\n")
-               else-cond))]))
+     (set! program (string-append program (format "~a\n" label)))
+     (emit-cond-arm arms label context 0)
+     (set! program (string-append program (format "~a.end\n" label)))]
+    [form (raise-syntax-error 'bad-syntax-i-guess
+                              "could not figure out what to emit"
+                              form)]))
 
-(provide emit-instruction data-acc data-list emit-params emit-string-lit emit-args)
+(define (emit-cond-arm arms label context counter)
+  (set! program
+        (string-append program (format "~a.body~a\n" label counter)))
+  (match arms
+    ['() ""]
+    [(cons (cond-arm condition body) rst)
+     (set! counter (+ counter 1))
+     (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+     (define res (emit-instruction condition context))
+     (define body-label (format "~a.body~a" label counter))
+     (define else-label (format "~a.body~a" label (+ counter 1)))
+     (set! program
+           (string-append program
+                          (format
+                            "\tjnz ~a, ~a, ~a\n~a\n"
+                            res body-label else-label body-label)))
+     (map (lambda (x) (emit-instruction x context)) body)
+
+     (set! program
+           (string-append program
+                          (format "\tjmp ~a.end\n" label)))
+     (emit-cond-arm rst label context (+ counter 1))]))
+
+(provide program data-acc emit-instruction data-list (struct-out ctx))

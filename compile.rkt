@@ -3,17 +3,14 @@
 (require "parse.rkt")
 (require "codegen.rkt")
 
-; emit-program : (listof ast?) -> string
 (define (emit-program asts)
-  (values ""
-          (string-append
-            (match asts
-              ['() ""]
-              [(cons node _)
-               (define-values (_ code) (emit-instruction node))
-               code])
-            "\n"
-            (data-acc data-list ""))))
+  (map (lambda (ast)
+         (match ast
+           ['() ""]
+           [_
+            (emit-instruction ast (ctx 0 0 0))
+            ])) asts)
+  (string-append program (data-acc data-list "")))
 
 ; Parse a .mk source file into a list of AST nodes.
 (define (parse-file filename)
@@ -44,7 +41,7 @@
 
   ; Step 2 - Code generation: AST -> QBE IR text
   (printf "  [2/6] Generating QBE IR...\n")
-  (define-values (_ ssa-text) (emit-program asts))
+  (define ssa-text (emit-program asts))
   (printf "         ~a bytes of QBE IR\n" (string-length ssa-text))
 
   ; Step 3 - Write the .ssa file

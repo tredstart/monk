@@ -46,6 +46,7 @@ char **bamm_argv = NULL;
 void bamm_init(int argc, char **argv) {
     bamm_argc = argc;
     bamm_argv = argv;
+    arena_create(4096, 4096);
 }
 
 static handle_entry_t handle_table[MAX_HANDLES] = {0};
