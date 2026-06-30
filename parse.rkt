@@ -217,6 +217,7 @@
           ['>= 'csgel]
           ['<= 'cslel]
           ['!= 'cnel]
+          ['i32->i64 'extsw]
           [n n])
        (map parse-expr (syntax->list #'(args ...))))]
 

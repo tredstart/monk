@@ -42,8 +42,22 @@
 
 (define globals
   (hash
-    'csltl "" 'csgtl "" 'ceql "" 'cnel "" 'csgel "" 'cslel ""
-    'add "" 'mul "" 'sub "" 'div ""))
+    'csltl ""
+    'csgtl ""
+    'ceql ""
+    'cnel ""
+    'csgel ""
+    'cslel ""
+    'add ""
+    'mul ""
+    'sub ""
+    'div ""
+    'extsw ""))
+
+(define (sanitize-id id)
+  (if (symbol? id)
+      (regexp-replace* #rx"[-]" (symbol->string id) "_")
+      (regexp-replace* #rx"[-]" id "_")))
 
 (define (emit-instruction node context)
   (match node
@@ -78,7 +92,7 @@
      (set! program
            (string-append program
                           (format "\tstorel ~a, %~a\n"
-                                  result name)))]
+                                  result (sanitize-id name))))]
 
     [(form name args) #:when (hash-has-key? globals name)
      (define sum
@@ -93,17 +107,19 @@
      result]
 
     [(immut-def name expr)
-     (let [(expr-res (emit-instruction expr context))]
+     (let [(expr-res (emit-instruction expr context))
+           (san-name (sanitize-id name))]
        (set! program
-             (string-append program (format "\t%~a =l copy ~a\n" name expr-res))))]
+             (string-append program (format "\t%~a =l copy ~a\n" san-name expr-res))))]
     ;; temprorarily this will affect nothing actually
     [(mut-def name expr)
-     (let [(expr-res (emit-instruction expr context))]
+     (let [(expr-res (emit-instruction expr context))
+           (san-name (sanitize-id name))]
        (set! program
              (string-append program
                             (format
                               "\t%~a =l alloc8 8\n\tstorel ~a, %~a\n"
-                              name expr-res name))))]
+                              san-name expr-res san-name))))]
 
     [(bool-def id)
      (match id
@@ -127,16 +143,11 @@
      ;; this is temp due to missing logic on the reversing
      ;; atom - type-re => type-ref atom
      (let [(param-list (string-join
-                         (map
-                           (lambda (item)
-                             (match item
-                               ['() ""]
-                               [(atom _) ""]
-                               [(type-ref _) ""])) params) ", "))]
+                         (reverse (emit-params params '())) ", "))]
        (set! program
              (string-append program
                             (format "function l $~a(~a){\n@start\n"
-                                    name param-list)))
+                                    (sanitize-id name) param-list)))
        (define ret (ret-val (lambda (x)
                               (emit-instruction x context)) body))
        (set! program
@@ -146,7 +157,7 @@
      (set-ctx-result-count! context (+ (ctx-result-count context) 1))
      (define result (format "%r~a" (ctx-result-count context)))
      (set! program
-           (string-append program (format "\t~a =l loadl %~a\n" result name)))
+           (string-append program (format "\t~a =l loadl %~a\n" result (sanitize-id name))))
      result]
     [(form 'while args)
      (define label (format "@loop~a" (ctx-loop-count context)))
@@ -178,7 +189,7 @@
      (set! program
            (string-append program
                           (format "\t~a =l call $~a(~a)\n"
-                                  result name args-list)))
+                                  result (sanitize-id name) args-list)))
      result]
     [(cond-expr arms)
      (define label (format "@cond~a" (ctx-condition-count context)))
@@ -214,5 +225,12 @@
            (string-append program
                           (format "\tjmp ~a.end\n" label)))
      (emit-cond-arm rst label context (+ counter 1))]))
+
+(define (emit-params param-list qbe-param-list)
+  (match param-list
+    [(list (atom name) (type-ref _))
+     (cons (format "l %~a" (sanitize-id name)) qbe-param-list)]
+    [(list (atom name) (type-ref _) rst ...)
+     (emit-params rst (cons (format "l %~a" (sanitize-id name)) qbe-param-list))]))
 
 (provide program data-acc emit-instruction data-list (struct-out ctx))
