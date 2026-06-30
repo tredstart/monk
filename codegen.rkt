@@ -42,6 +42,7 @@
 
 (define globals
   (hash
+    'alloc8 ""
     'csltl ""
     'csgtl ""
     'ceql ""
@@ -52,7 +53,9 @@
     'mul ""
     'sub ""
     'div ""
-    'extsw ""))
+    'extsw ""
+    'or ""
+    'and ""))
 
 (define (sanitize-id id)
   (if (symbol? id)
@@ -61,7 +64,7 @@
 
 (define (emit-instruction node context)
   (match node
-    [(atom id) (format "%~a" id)]
+    [(atom id) (format "%~a" (sanitize-id id))]
     [(int-lit value) (format "~a" value)]
     [(float-lit value) value]
     [(string-lit content)
@@ -79,7 +82,9 @@
 
         (set-ctx-result-count! context (+ (ctx-result-count context) 1))
         (define inter-result (format "%r~a" (ctx-result-count context)))
-        (let [(result (* 8 (string->number (emit-instruction index context))))
+        (let [(result (match index
+                        [(int-lit i) (* 8 i)]
+                        [_ (emit-instruction index context)]))
               (name (emit-instruction n context))]
           (set! program
                 (string-append program
@@ -87,12 +92,25 @@
                                        access-result name result
                                        inter-result access-result)))
           inter-result)])]
-    [(form 'set (cons (atom name) value))
+
+    [(form 'set (cons n value))
      (define result (ret-val (lambda (x) (emit-instruction x context)) value))
+     (define name (match n
+                    [(atom _) (emit-instruction n context)]
+                    [_ (format "~a" (emit-instruction n context))]))
      (set! program
            (string-append program
-                          (format "\tstorel ~a, %~a\n"
+                          (format "\tstorel ~a, ~a\n"
                                   result (sanitize-id name))))]
+    [(form 'ref (cons (atom name) value))
+     (define result (ret-val (lambda (x) (emit-instruction x context)) value))
+     (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+     (define access-result (format "%r~a" (ctx-result-count context)))
+     (set! program
+           (string-append program
+                          (format "\t~a =l add %~a, ~a\n"
+                                  access-result (sanitize-id name) result)))
+     access-result]
 
     [(form name args) #:when (hash-has-key? globals name)
      (define sum

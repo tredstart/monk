@@ -2,4 +2,7 @@
 compiled/
 ./test_runtime_asan
 bin/
+.opencode
+debug_test*
+test_runtime_*
 
