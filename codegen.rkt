@@ -73,12 +73,15 @@
                                        access-result name result
                                        inter-result access-result)))
           inter-result)])]
+    [(form 'set (cons (atom name) value))
+     (define result (ret-val (lambda (x) (emit-instruction x context)) value))
+     (set! program
+           (string-append program
+                          (format "\tstorel ~a, %~a\n"
+                                  result name)))]
 
     [(form name args) #:when (hash-has-key? globals name)
      (define sum
-       ;; (map (lambda (x)
-       ;;        (string-append "l "
-       ;;                       (emit-instruction x context))) args))
        (map (lambda (x)
               (emit-instruction x context)) args))
      (define args-list (string-join sum ", "))
@@ -97,7 +100,10 @@
     [(mut-def name expr)
      (let [(expr-res (emit-instruction expr context))]
        (set! program
-             (string-append program (format "\t%~a =l copy ~a\n" name expr-res))))]
+             (string-append program
+                            (format
+                              "\t%~a =l alloc8 8\n\tstorel ~a, %~a\n"
+                              name expr-res name))))]
 
     [(bool-def id)
      (match id
@@ -136,6 +142,30 @@
        (set! program
              (string-append program
                             (format "\tret ~a\n}\n" ret))))]
+    [(form 'deref (list (atom name)))
+     (set-ctx-result-count! context (+ (ctx-result-count context) 1))
+     (define result (format "%r~a" (ctx-result-count context)))
+     (set! program
+           (string-append program (format "\t~a =l loadl %~a\n" result name)))
+     result]
+    [(form 'while args)
+     (define label (format "@loop~a" (ctx-loop-count context)))
+
+     (set-ctx-loop-count! context (+ (ctx-loop-count context) 1))
+     (set! program (string-append program (format "~a\n" label)))
+     (match args
+       [(cons condition body)
+        (define result (emit-instruction condition context))
+        (set! program
+              (string-append program
+                             (format "\tjnz ~a, ~a.body, ~a.end\n~a.body\n"
+                                     result label label label)))
+        (map (lambda (x) (emit-instruction x context)) body)
+        (set! program
+              (string-append program
+                             (format "\tjmp ~a\n~a.end\n"
+                                     label label)))]
+       [_ (raise-syntax-error 'missing-body "there is no body in the while" args)])]
     [(form name args)
      (define sum
        (map (lambda (x)
