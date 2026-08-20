@@ -124,13 +124,13 @@
                           (format "\t~a =l ~a ~a\n" result name args-list)))
      result]
 
-    [(immut-def name expr)
+    [(box-def name expr)
      (let [(expr-res (emit-instruction expr context))
            (san-name (sanitize-id name))]
        (set! program
              (string-append program (format "\t%~a =l copy ~a\n" san-name expr-res))))]
     ;; temprorarily this will affect nothing actually
-    [(mut-def name expr)
+    [(box/mut-def name expr)
      (let [(expr-res (emit-instruction expr context))
            (san-name (sanitize-id name))]
        (set! program

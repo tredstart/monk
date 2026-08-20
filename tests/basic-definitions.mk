@@ -6,9 +6,9 @@
 
 ; (fn invalid-id [? (option :bool)]) <- ignore generics for the moment
 
-(immut a "hello")
+(box a "hello")
 
-(mut sum (+ a b))
+(box/mut sum (+ a b))
 
 
 (fn add-float [a :int b :float]
@@ -48,7 +48,7 @@
   [(< x 0) (print "hello!")]
   [(= false true) 
      (use-subarena)
-     (immut p1 (new 
+     (box p1 (new 
 	     (person 
 		   .name "Luffy" 
 		   .age 21 
@@ -57,7 +57,7 @@
   [_ (println "always prints out")]
   [_named-wildcard (print "named one")])
 
-(immut o error.not-found)
+(box o error.not-found)
 (match o
   [.not-found (print "it's okay!")]
   [1 (print "int!")]

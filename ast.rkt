@@ -23,8 +23,9 @@
 (struct union-variant (name id) #:transparent)
 
 
-(struct immut-def (name expr) #:transparent)
-(struct mut-def (name expr) #:transparent)
+(struct box-def (name expr) #:transparent)
+(struct box/mut-def (name expr) #:transparent)
+(struct val-def (name expr) #:transparent)
 (struct bool-def (id) #:transparent)
 
 ; function definition
@@ -67,8 +68,9 @@
   (struct-out union-def)
   (struct-out enum-def)
 
-  (struct-out immut-def)
-  (struct-out mut-def)
+  (struct-out box-def)
+  (struct-out box/mut-def)
+  (struct-out val-def)
 
   (struct-out fn-def)
 

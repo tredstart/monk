@@ -138,9 +138,9 @@
 
 (define (parse-expr stx)
   (syntax-parse stx
-    #:datum-literals (fn struct mut immut macro union
+    #:datum-literals (fn struct box box/mut macro union
                          enum type let let-mut cond
-                         true false match @)
+                         true false match @ val)
     [true (bool-def 'true)]
 
     [false (bool-def 'false)]
@@ -154,13 +154,18 @@
 
     [x:string (string-lit (syntax->datum #'x))]
 
-    [(immut ~! name:id expression:expr)
-     (immut-def
+    [(box ~! name:id expression:expr)
+     (box-def
        (syntax->datum #'name)
        (parse-expr #'expression))]
 
-    [(mut ~! name:id expression:expr)
-     (mut-def
+    [(box/mut ~! name:id expression:expr)
+     (box/mut-def
+       (syntax->datum #'name)
+       (parse-expr #'expression))]
+
+    [(val ~! name:id expression:expr)
+     (val-def
        (syntax->datum #'name)
        (parse-expr #'expression))]
 
@@ -210,23 +215,33 @@
 
     [(name:id args:expr ...)
      (form
-        (match (syntax->datum #'name)
-          ['< 'csltl]
-          ['> 'csgtl]
-          ['= 'ceql]
-          ['>= 'csgel]
-          ['<= 'cslel]
-          ['!= 'cnel]
-          ['i32->i64 'extsw]
-          ['+ 'add]
-          ['* 'mul]
-          ['- 'sub]
-          ['/ 'div]
-          [n n])
+       (match (syntax->datum #'name)
+         ['< 'csltl]
+         ['> 'csgtl]
+         ['= 'ceql]
+         ['>= 'csgel]
+         ['<= 'cslel]
+         ['!= 'cnel]
+         ['i32->i64 'extsw]
+         ['+ 'add]
+         ['* 'mul]
+         ['- 'sub]
+         ['/ 'div]
+         [n n])
        (map parse-expr (syntax->list #'(args ...))))]
 
     [wut (raise-syntax-error 'parse-error
                              (format " how? HOW? What is ~a? "
                                      (syntax->datum #'wut)) stx)]))
 
-(provide parse-expr)
+(define (parse-file filename)
+  (call-with-input-file filename
+    (lambda (port)
+      (port-count-lines! port)
+      (let loop ([acc '()])
+        (define stx (read-syntax filename port))
+        (if (eof-object? stx)
+            (reverse acc)
+            (loop (cons (parse-expr stx) acc)))))))
+
+(provide parse-expr parse-file)

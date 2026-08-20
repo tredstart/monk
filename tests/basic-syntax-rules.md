@@ -1,18 +1,18 @@
 ; ============================================================
 ; comprehensive language example
-; covers: require, immut, mut, struct, union, enum, type (alias + adt),
+; covers: require, box, box/mut, struct, union, enum, type (alias + adt),
 ;         fn, let, let-mut, set, if, when, cond, for, match,
 ;         ++, --, +=, -=, option type, result type, foldl, append
 ; ============================================================
 
 ; --- module imports ---
-(immut core   (require 'core))
-(immut math   (require 'math))
+(box core   (require 'core))
+(box math   (require 'math))
 
 ; --- bring specific bindings into scope ---
-(immut abs    core.abs)
-(immut print  core.print)
-(immut input  core.input)
+(box abs    core.abs)
+(box print  core.print)
+(box input  core.input)
 
 ; ============================================================
 ; type definitions
@@ -125,7 +125,7 @@
 
 (fn main []
 
-  ; --- immut / let bindings ---
+  ; --- box / let bindings ---
   (let [origin    (point 0.0 0.0)
         target    (coord 3.0 4.0)   ; coord is alias for point
         dist      (distance origin target)
@@ -134,8 +134,8 @@
     (print greeting "\n")
     (print "distance: " dist "\n"))   ; should print 5.0
 
-  ; --- mut + set + ++ / -- ---
-  (mut counter 0)
+  ; --- box/mut + set + ++ / -- ---
+  (box/mut counter 0)
   (++ counter)                        ; counter = 1
   (++ counter)                        ; counter = 2
   (-- counter)                        ; counter = 1
@@ -145,7 +145,7 @@
   (print "counter: " counter "\n")
 
   ; --- struct construction + field access ---
-  (mut alice (person .name "alice" .age 30 .is-active true))
+  (box/mut alice (person .name "alice" .age 30 .is-active true))
   (set alice.age (+ alice.age 1))     ; birthday
   (print "alice age: " alice.age "\n")
 
@@ -179,7 +179,7 @@
     (print "abs(-7): " abs-x "\n"))
 
   ; --- for loop [name inclusive exclusive step?] ---
-  (mut total 0)
+  (box/mut total 0)
   (for [i 0 10]                        ; 0..9
     (+= total i))
   (print "sum 0-9: " total "\n")       ; 45
@@ -189,7 +189,7 @@
       (print "stepped: " i "\n")))
 
   ; --- option type + match ---
-  (mut maybe-val (option :int))        ; starts as none
+  (box/mut maybe-val (option :int))        ; starts as none
   (set maybe-val 42)                ; now holds 42
 
 ;  (match maybe-val
@@ -207,7 +207,7 @@
       [(.ok  val) (print "result: " val "\n")]))
 
   ; --- list + append + foldl ---
-  (mut numbers (list :int))
+  (box/mut numbers (list :int))
   (append numbers 3)
   (append numbers -7)
   (append numbers 2)
@@ -242,11 +242,11 @@
   ; ============================================================
 
   ; anonymous functions / closures
-  ; (mut transform (fn [x :int] (* x x)))
+  ; (box/mut transform (fn [x :int] (* x x)))
   ; (print (transform 5) "\n")
 
   ; generic list with non-primitive type param
-  ; (mut shapes (list :shape))
+  ; (box/mut shapes (list :shape))
   ; (append shapes (shape.circle 1.0))
 
   ; pipe / threading operator

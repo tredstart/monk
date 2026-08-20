@@ -7,11 +7,11 @@
 					0)
 
 (fn read-token [file :file token-ref :string]
-	(mut char-ref (getc file))
-	(mut count-ref 0)
+	(box/mut char-ref (getc file))
+	(box/mut count-ref 0)
 	(while (!= (i32->i64 (deref char-ref)) -1)
-		(immut count (deref count-ref))
-		(immut char (deref char-ref))
+		(box count (deref count-ref))
+		(box char (deref char-ref))
 		(printf "%s\n: " token-ref)
 		(set char-ref (getc file))
 		(cond
@@ -41,12 +41,12 @@
   (printf "args: %d\n" argc)
   (cond
       [(>= argc 2)
-		  (immut filename (idx argv 1))
-		  (immut file (fopen filename "r"))
+		  (box filename (idx argv 1))
+		  (box file (fopen filename "r"))
 		  (cond [(= file 0) 
 		     (puts "not good")
 		     (exit 1)])
-		  (immut token-ref (alloc8 (* 8 128)))
+		  (box token-ref (alloc8 (* 8 128)))
 		  (read-token file token-ref)
 		  (fclose file)]
 	   ; TODO: extend parser to allow ints/floats/bools
