@@ -1,14 +1,13 @@
-(struct point {
-  x :f32
-  y :f32})
+(fn make-value [ctx :i32] :i32
+  (in-new 'arena-b)
+  (box y :i32 (new (+ ctx 1)))   ;; y lives in arena-b
+  y)                               ;; arena-b dies on return — y is already dangling
 
-(enum sides [
-  N
-  W
-  E
-  S])
+(fn main [] :u8
+  (in-new 'arena-a)
+  (box x :i32 (new 42))
 
-(fn main [argc :i32 argv :string] :i32
-  (box/mut size :f32 .43)
-  (printf "hello, world\n")
-  0)
+  (box y :i32 (make-value x))          ;; ERROR: y's arena (arena-b) is dead at this point
+  (puts y))
+
+

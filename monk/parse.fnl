@@ -46,7 +46,12 @@
     :sym (if (= x.str :true) (ast.bool-def true)
              (= x.str :false) (ast.bool-def false)
              (ast.atom x.str))
-    _ (die-at x (.. "how? HOW? What is " (. x :tag) "?"))))
+    :quote (do
+             (print (fennel.view x))
+             (ast.quote-def x.item.str))
+    _ (do
+        (print (fennel.view x))
+        (die-at x (.. "how? HOW? What is " (. x :tag) "?")))))
 
 ;; @function prefix-sym?
 ;; @param x table|nil
@@ -59,11 +64,8 @@
 ;; @param shape keyword
 ;; @param msg string
 (fn shape-items? [x shape msg]
-  (print :SHAPE! (fennel.view x))
   (if (= (. x :shape) shape)
-      (do
-        (print "END OF SEQ")
-        (. x :items))
+      (. x :items)
       (die-at x msg)))
 
 ;; @function expect-sym
@@ -162,7 +164,6 @@
       (let [items (. x :items)
             head (. items 1)
             form-call (and (sym? head) (. head :str))]
-        (print "items: " (fennel.view items))
         (if (not form-call)
             (die-at x "expected a symbol to open a form")
             (case form-call

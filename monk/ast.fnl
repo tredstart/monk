@@ -110,7 +110,10 @@
 ;; @field name string
 ;; @field args list
 (fn form [name args] {:tag :form : name : args})
+
 (fn package [name] {:tag :package : name})
+
+(fn quote-def [name] {:tag :quote : name})
 
 {: atom
  : int-lit
@@ -136,4 +139,5 @@
  : let-def
  : let-mut-def
  : form
+ : quote-def
  : package}

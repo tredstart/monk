@@ -6,12 +6,15 @@
 
 (local M {})
 
-(var sym-table {:main {:type :package}})
+(var sym-table {})
 
 ; (let [(k v) (resolve-chain form)]
 ;   (set scope-tree k v))
 
-(fn scoper [old new] (table.concat [old new] "::"))
+(fn scoper [old new]
+  (case old
+    "" new
+    _ (table.concat [old new] ".")))
 
 (macro in-scope [name ...]
   `(let [,name (scoper scope form.name)]
@@ -61,7 +64,7 @@
         (print (.. "not implemented yet " form.tag)))))
 
 (fn M.typing-pass [forms]
-  (typer forms :main)
+  (typer forms "")
   sym-table)
 
 (fn M.dump-symtab [chains]
