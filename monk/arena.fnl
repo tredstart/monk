@@ -6,57 +6,58 @@
 
 (local M {})
 
-; :parent.arena-b
-; {:make-value {:params {:ctx :parent}
-;               :return :parent
-;               :body {:y :parent.arena-b}}}
-
-(var a-table {})
-(local ANY {})
-
-(local in-new {:tag :form :name :in-new})
-(local _in {:tag :fn-def :name :in})
+(local a-table {})
 
 (macro arena [context]
   `{:arena [(table.unpack ,context)]})
 
+(macro create-context [args context location]
+  `(let [arena-name# (. (. ,args 1) :name)]
+     (table.insert ,context {:sign arena-name# :location ,location})))
+
+(macro dbg [msg val]
+  `(print ,msg (fennel.view ,val)))
+
 (fn return-exists [last-result variables]
   (and last-result (. variables last-result)))
 
+(local ANY {:sign :<any> :location :<unknown>})
 (fn handle-fn [function]
-  (local f (partial . a-table))
+  (local signature {:parameters {} :return nil})
   (var last-result nil)
-  (var im-context [])
-  (var variables {})
+  (local context [ANY])
+  (local variables {})
   (each [_ p (ipairs function.params)]
-    (let [param (. p 1)]
-      (set (. variables param.id) (arena im-context))))
+    (let [param (. p 1)
+          vals (arena context)]
+      (dbg :vals param)
+      (set (. signature.parameters param.id) vals)
+      (set (. variables param.id) vals)))
   (each [_ v (ipairs function.body)]
     (case v
-      {:tag :form :name :in-new :args _} (let [arena-name (. (. v.args 1) :name)]
-                                           (print "hit in-new")
-                                           (table.insert im-context arena-name))
+      {:tag :form :name :in-new :args _} (create-context v.args context :inner)
+      {:tag :form :name :in :args _} (create-context v.args context :outer)
       (where {: tag :expr {:tag :form :name :new}}
-             (or (= tag :box/mut-def) (= tag :box-def))) (do
-                                                                 (print "hit definition")
-                                                                 (set (. variables
-                                                                         v.name)
-                                                                      (arena im-context)))
-      {:tag :atom : id} (do
-                          (print "hit id")
-                          (set last-result id))
+             (or (= tag :box/mut-def) (= tag :box-def)))
+      (set (. variables v.name) (arena context))
+      {:tag :atom : id} (set last-result id)
       _ (print "looking at: " (fennel.view v))))
-  (table.remove im-context)
   (let [re (return-exists last-result variables)
-        le (length im-context)
-        rle (if (and re re.arena) (length re.arena) 0)]
-    (when (and re (> rle le))
-      (let [node-name (or last-result :<unknown>)
-            arena-path (table.concat (icollect [_ v (ipairs re.arena)]
-                                       (if (= v ANY) :<any> (tostring v)))
-                                     " -> ")]
-        (error (string.format "Lifetime error: '%s' tries to escape context [%s]"
-                              node-name arena-path))))))
+        arena-on-return (and re re.arena)]
+    (dbg :aor arena-on-return)
+    (when arena-on-return
+      (set signature.return ANY.sign)
+      (var inner-sign nil)
+      (var outer-sign nil)
+      (each [_ a (ipairs arena-on-return)]
+        (if (= a.location :inner) (set inner-sign a.sign)
+            (= a.location :outer) (set outer-sign a.sign)))
+      (if inner-sign
+          (error (string.format "Lifetime error: '%s' tries to escape context [%s]"
+                                last-result inner-sign))
+          outer-sign
+          (set signature.return outer-sign))))
+  (set (. a-table function.name) signature))
 
 (fn handle-form [form]
   (case form.tag :fn-def (handle-fn form)))
